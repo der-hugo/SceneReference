@@ -1,0 +1,14 @@
+{
+  "name": "derHugo.Unity.SceneReference",
+  "rootNamespace": "derHugo.Unity.SceneReference",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

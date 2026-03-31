@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b10c57e74752c1241b6b5687d8ddd30a, type: 3}
+  m_Name: Scene Reference Example
+  m_EditorClassIdentifier: 
+  _singleSceneReference:
+    _sceneAsset: {fileID: 102900000, guid: 173f0d7acad352746bbaaf9d68c953aa, type: 3}
+    _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_A.unity
+    _name: SceneReferenceExample_A
+  _sceneReferenceList:
+  - _sceneAsset: {fileID: 102900000, guid: 173f0d7acad352746bbaaf9d68c953aa, type: 3}
+    _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_A.unity
+    _name: SceneReferenceExample_A
+  - _sceneAsset: {fileID: 102900000, guid: c32522ec23ace4145a7a883fc5d6ecec, type: 3}
+    _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_B.unity
+    _name: SceneReferenceExample_B
+  - _sceneAsset: {fileID: 102900000, guid: 72fa09828cbbc8447bd0baf8cc1dd3d1, type: 3}
+    _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_C.unity
+    _name: SceneReferenceExample_C
+  _nestingExample:
+    - _nestedSceneReference:
+        _sceneAsset: {fileID: 102900000, guid: c32522ec23ace4145a7a883fc5d6ecec, type: 3}
+        _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_B.unity
+        _name: SceneReferenceExample_B

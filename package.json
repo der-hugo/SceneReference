@@ -1,0 +1,24 @@
+{
+  "name": "com.derhugo.unity.scenereference",
+  "displayName": "derHugo - Scene Reference",
+  "version": "1.0.1",
+  "unity": "2022.3",
+  "description": "Serializable Scene References",
+  "keywords": [
+    "scene",
+    "scenes"
+  ],
+  "type": "tool",
+  "samples": [
+    {
+      "displayName": "SceneReference",
+      "description": "Example of the SceneReference in action",
+      "path": "Samples~/SceneReferenceExample"
+    }
+  ],
+  "documentationUrl": "./Documentation~/Index.md",
+  "author": {
+    "name": "derHugo",
+    "email": "hugo.franz2@web.de"
+  }
+}
