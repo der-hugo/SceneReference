@@ -1,0 +1,16 @@
+{
+    "name": "derHugo.Unity.SceneReference.Samples",
+    "rootNamespace": "derHugo.Unity.SceneReference.Samples",
+    "references": [
+        "GUID:944fbb5d706638b4fbcd987efb51b737"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
