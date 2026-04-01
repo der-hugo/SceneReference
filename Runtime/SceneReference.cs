@@ -1,13 +1,27 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
+
+#if SUPPORT_ADDRESABBLES
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceLocations;
+using UnityEngine.ResourceManagement.ResourceProviders;
+#endif
+
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using System.Linq;
 using UnityEditor.VersionControl;
+#if SUPPORT_ADDRESABBLES
+using UnityEditor.AddressableAssets;
+using UnityEditor.AddressableAssets.Settings;
 #endif
-using System;
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
+
+#endif
 
 namespace derHugo.Unity.SceneReference
 {
@@ -52,6 +66,120 @@ namespace derHugo.Unity.SceneReference
         /// </summary>
         [SerializeField] private string _name = "SampleScene";
 
+#if SUPPORT_ADDRESABBLES
+        [SerializeField] private bool _isAddressable;
+        [SerializeField] private string _addressableAddress;
+        [SerializeField] private string _addressableAssetGuid;
+#endif
+
+#if SUPPORT_ADDRESABBLES
+        private SceneReferenceLoadOperation _lastLoadOperation;
+#endif
+
+        public SceneReferenceLoadOperation LoadAsync(LoadSceneMode loadSceneMode = LoadSceneMode.Single, bool activateOnLoad = true, int priority = 100)
+        {
+            return LoadAsync(new LoadSceneParameters(loadSceneMode), activateOnLoad, priority);
+        }
+
+        public SceneReferenceLoadOperation LoadAsync(LoadSceneParameters loadSceneParameters, bool activateOnLoad = true, int priority = 100)
+        {
+            var validState = IsValidScene;
+            if (validState != ValidState.Valid)
+            {
+                var invalidOperation = SceneReferenceLoadOperation.CreateInvalid(
+                    this,
+                    new InvalidOperationException(
+                        $"SceneReference '{Name}' is not loadable. Validation failed with '{validState}'. Path='{Path}', RuntimeKey='{RuntimeKey}'."
+                    )
+                );
+
+#if SUPPORT_ADDRESABBLES
+                _lastLoadOperation = invalidOperation;
+#endif
+
+                return invalidOperation;
+            }
+
+            SceneReferenceLoadOperation operation;
+
+#if SUPPORT_ADDRESABBLES
+            if (IsAddressable)
+            {
+                operation = SceneReferenceLoadOperation.CreateAddressable(
+                    this,
+                    Addressables.LoadSceneAsync(AddressableRuntimeKey, loadSceneParameters, activateOnLoad, priority),
+                    activateOnLoad,
+                    priority
+                );
+                _lastLoadOperation = operation;
+                return operation;
+            }
+#endif
+
+            var sceneOperation = SceneManager.LoadSceneAsync(Path, loadSceneParameters);
+            if (sceneOperation != null)
+            {
+                sceneOperation.priority = priority;
+                sceneOperation.allowSceneActivation = activateOnLoad;
+            }
+
+            operation = SceneReferenceLoadOperation.CreateSceneManager(this, sceneOperation, activateOnLoad, priority);
+
+#if SUPPORT_ADDRESABBLES
+            _lastLoadOperation = operation;
+#endif
+
+            return operation;
+        }
+
+        public SceneReferenceLoadOperation Load(LoadSceneMode loadSceneMode = LoadSceneMode.Single, bool activateOnLoad = true, int priority = 100)
+        {
+            return LoadAsync(loadSceneMode, activateOnLoad, priority);
+        }
+
+        public SceneReferenceLoadOperation Load(LoadSceneParameters loadSceneParameters, bool activateOnLoad = true, int priority = 100)
+        {
+            return LoadAsync(loadSceneParameters, activateOnLoad, priority);
+        }
+
+        public SceneReferenceUnloadOperation UnloadAsync(UnloadSceneOptions unloadOptions = UnloadSceneOptions.None, bool autoReleaseHandle = true)
+        {
+#if SUPPORT_ADDRESABBLES
+            if (_lastLoadOperation != null && _lastLoadOperation.IsValid)
+            {
+                return _lastLoadOperation.Unload(unloadOptions, autoReleaseHandle);
+            }
+
+            if (IsAddressable)
+            {
+                return SceneReferenceUnloadOperation.CreateInvalid(this);
+            }
+#endif
+
+            var scene = SceneManager.GetSceneByPath(Path);
+            return SceneReferenceUnloadOperation.CreateSceneManager(
+                this,
+                scene.IsValid() ? SceneManager.UnloadSceneAsync(scene, unloadOptions) : null
+            );
+        }
+
+        public SceneReferenceUnloadOperation Unload(UnloadSceneOptions unloadOptions = UnloadSceneOptions.None, bool autoReleaseHandle = true)
+        {
+            return UnloadAsync(unloadOptions, autoReleaseHandle);
+        }
+
+        public SceneReferenceLoadOperation LastLoadOperation
+        {
+            get
+            {
+#if SUPPORT_ADDRESABBLES
+                return _lastLoadOperation;
+#else
+                return null;
+#endif
+            }
+        }
+
         /// <summary>
         /// In edit mode return the <see cref="_sceneAsset"/>.<see cref="UnityEngine.Object.name"/>
         /// <para>In a build returns the serialized <see cref="_name"/></para>
@@ -68,25 +196,115 @@ namespace derHugo.Unity.SceneReference
             }
         }
 
+#if SUPPORT_ADDRESABBLES
         /// <summary>
-        /// In edit mode checks if the <see cref="Path"/> is valid
-        /// <para>In play mode additionally checks whether the scene is added to the build settings and enabled</para>
+        /// Whether this scene is also registered as an Addressables scene.
         /// </summary>
-        public bool IsValidScene
+        public bool IsAddressable
         {
             get
             {
-                if (Application.isPlaying)
-                {
-                    return !string.IsNullOrWhiteSpace(Path) && SceneUtility.GetBuildIndexByScenePath(Path) >= 0;
-                }
-
-                return !string.IsNullOrWhiteSpace(Path);
+                var addressableSceneData = GetCurrentAddressableSceneData();
+                return addressableSceneData.IsAddressable && !string.IsNullOrWhiteSpace(addressableSceneData.AssetGuid);
             }
         }
 
         /// <summary>
+        /// The Addressables address of this scene if one was assigned.
+        /// </summary>
+        public string AddressableAddress
+        {
+            get
+            {
+                var addressableSceneData = GetCurrentAddressableSceneData();
+                return addressableSceneData.IsAddressable ? addressableSceneData.Address : string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The asset guid used by Addressables as the preferred stable runtime key.
+        /// </summary>
+        public string AddressableAssetGuid
+        {
+            get
+            {
+                var addressableSceneData = GetCurrentAddressableSceneData();
+                return addressableSceneData.IsAddressable ? addressableSceneData.AssetGuid : string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The key to pass to Addressables when loading this scene.
+        /// </summary>
+        public string AddressableRuntimeKey
+        {
+            get
+            {
+                var addressableSceneData = GetCurrentAddressableSceneData();
+                return addressableSceneData.RuntimeKey;
+            }
+        }
+#endif
+
+        /// <summary>
+        /// In edit mode checks if the <see cref="Path"/> is valid
+        /// <para>In play mode additionally checks whether the scene is added to the build settings and enabled</para>
+        /// </summary>
+        public ValidState IsValidScene
+        {
+            get
+            {
+#if SUPPORT_ADDRESABBLES
+                if (IsAddressable)
+                {
+                    if (string.IsNullOrWhiteSpace(AddressableRuntimeKey))
+                    {
+                        return ValidState.InvalidAddressableKey;
+                    }
+
+                    if (Application.isPlaying && TryValidateRuntimeAddressableKey(out var hasValidRuntimeKey) && !hasValidRuntimeKey)
+                    {
+                        return ValidState.InvalidAddressableKey;
+                    }
+
+                    return ValidState.Valid;
+                }
+#endif
+
+                if (string.IsNullOrWhiteSpace(Path))
+                {
+                    return ValidState.InvalidUnassigned;
+                }
+
+                if (Application.isPlaying)
+                {
+                    if (SceneUtility.GetBuildIndexByScenePath(Path) < 0)
+                    {
+                        return ValidState.InvalidNotInBuildSettings;
+                    }
+                }
+
+                return ValidState.Valid;
+            }
+        }
+
+        public enum ValidState
+        {
+            Valid,
+            InvalidUnassigned,
+            InvalidNotInBuildSettings,
+#if SUPPORT_ADDRESABBLES
+            InvalidAddressableKey
+#endif
+        }
+
+        /// <summary>
         /// Is this scene currently loaded?
+        /// <para>
+        /// This is valid for both regular and Addressables scenes once the scene is actually activated into the
+        /// <see cref="SceneManager"/>. For delayed activation workflows use the returned
+        /// <see cref="SceneReferenceLoadOperation"/> to inspect <see cref="SceneReferenceLoadOperation.IsReadyForActivation"/>.
+        /// </para>
         /// </summary>
         public bool IsLoaded => SceneManager.GetSceneByPath(Path).isLoaded;
 
@@ -104,6 +322,27 @@ namespace derHugo.Unity.SceneReference
 #else
                 return _path;
 #endif
+            }
+        }
+
+        /// <summary>
+        /// Returns the runtime loading key for this scene.
+        /// <para>
+        /// For regular scenes this is the serialized <see cref="Path"/>.
+        /// For Addressables scenes this is the serialized asset guid if available, otherwise the address.
+        /// </para>
+        /// </summary>
+        public string RuntimeKey
+        {
+            get
+            {
+#if SUPPORT_ADDRESABBLES
+                if (IsAddressable)
+                {
+                    return AddressableRuntimeKey;
+                }
+#endif
+                return Path;
             }
         }
 
@@ -312,36 +551,43 @@ namespace derHugo.Unity.SceneReference
                 _path = GetScenePathFromAsset();
                 _name = _sceneAsset.name;
             }
-            else if (!string.IsNullOrWhiteSpace(_path))
+            else
             {
-                // Asset is invalid we but have Path to try and recover from
-                _sceneAsset = GetSceneAssetFromPath();
-                if (!_sceneAsset)
+                // Do not attempt path-to-asset recovery here. Unity may invoke serialization during domain backup,
+                // and AssetDatabase.LoadAssetAtPath is not allowed in that phase.
+                if (string.IsNullOrWhiteSpace(_path))
                 {
-                    // path was also invalid -> forget path
-                    _path = string.Empty;
                     _name = string.Empty;
-                }
-
-                if (!Application.isPlaying)
-                {
-                    EditorSceneManager.MarkAllScenesDirty();
+#if SUPPORT_ADDRESABBLES
+                    ClearAddressableState();
+#endif
                 }
             }
         }
 
         private void HandleAfterDeserialize()
         {
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating)
+            {
+                return;
+            }
+
             EditorApplication.update -= HandleAfterDeserialize;
 
             if (_sceneAsset)
             {
+#if SUPPORT_ADDRESABBLES
+                UpdateAddressableState(GetScenePathFromAsset());
+#endif
                 // Asset is valid, don't do anything - Path will always be set based on it when it matters
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(_path))
             {
+#if SUPPORT_ADDRESABBLES
+                ClearAddressableState();
+#endif
                 // Asset is invalid and we don't have a path to try and recover from
                 return;
             }
@@ -353,6 +599,15 @@ namespace derHugo.Unity.SceneReference
                 // No asset found, path was invalid. Make sure we don't carry over the old invalid path
                 _path = string.Empty;
                 _name = string.Empty;
+#if SUPPORT_ADDRESABBLES
+                ClearAddressableState();
+#endif
+            }
+            else
+            {
+#if SUPPORT_ADDRESABBLES
+                UpdateAddressableState(_path);
+#endif
             }
 
             if (!Application.isPlaying)
@@ -372,17 +627,151 @@ namespace derHugo.Unity.SceneReference
         {
             return _sceneAsset ? AssetDatabase.GetAssetPath(_sceneAsset) : string.Empty;
         }
-        
+
+#if SUPPORT_ADDRESABBLES
+        private bool TryValidateRuntimeAddressableKey(out bool hasValidRuntimeKey)
+        {
+            hasValidRuntimeKey = false;
+
+            var runtimeKey = AddressableRuntimeKey;
+            if (string.IsNullOrWhiteSpace(runtimeKey))
+            {
+                return true;
+            }
+
+            var sawAnyLocator = false;
+
+            foreach (var locator in Addressables.ResourceLocators)
+            {
+                sawAnyLocator = true;
+
+                if (!locator.Locate(runtimeKey, typeof(SceneInstance), out IList<IResourceLocation> locations))
+                {
+                    continue;
+                }
+
+                if (locations != null && locations.Count > 0)
+                {
+                    hasValidRuntimeKey = true;
+                    return true;
+                }
+            }
+
+            return sawAnyLocator;
+        }
+
+        private AddressableSceneData GetCurrentAddressableSceneData()
+        {
+#if UNITY_EDITOR
+            if (!EditorApplication.isCompiling && !EditorApplication.isUpdating)
+            {
+                var scenePath = _sceneAsset ? GetScenePathFromAsset() : _path;
+                return string.IsNullOrWhiteSpace(scenePath)
+                    ? AddressableSceneData.None
+                    : AddressablesUtils.GetSceneData(scenePath);
+            }
+#endif
+
+            return new AddressableSceneData(_isAddressable, _addressableAssetGuid, _addressableAddress);
+        }
+
+        private struct AddressableSceneData
+        {
+            public static readonly AddressableSceneData None = new(false, string.Empty, string.Empty);
+
+            public AddressableSceneData(bool isAddressable, string assetGuid, string address)
+            {
+                IsAddressable = isAddressable;
+                AssetGuid = assetGuid ?? string.Empty;
+                Address = address ?? string.Empty;
+            }
+
+            public bool IsAddressable { get; }
+            public string AssetGuid { get; }
+            public string Address { get; }
+            public string RuntimeKey => !string.IsNullOrWhiteSpace(AssetGuid) ? AssetGuid : Address;
+        }
+
+#if UNITY_EDITOR
+        private void UpdateAddressableState(string scenePath)
+        {
+            var addressableSceneData = AddressablesUtils.GetSceneData(scenePath);
+            _isAddressable = addressableSceneData.IsAddressable;
+            _addressableAddress = addressableSceneData.Address;
+            _addressableAssetGuid = addressableSceneData.AssetGuid;
+        }
+#endif
+
+        private void ClearAddressableState()
+        {
+            _isAddressable = false;
+            _addressableAddress = string.Empty;
+            _addressableAssetGuid = string.Empty;
+        }
+
+#if UNITY_EDITOR
+        private static class AddressablesUtils
+        {
+            public static AddressableSceneData GetSceneData(string assetPath)
+            {
+                if (string.IsNullOrWhiteSpace(assetPath))
+                {
+                    return AddressableSceneData.None;
+                }
+
+                if (!AddressableAssetSettingsDefaultObject.SettingsExists)
+                {
+                    return AddressableSceneData.None;
+                }
+
+                var settings = AddressableAssetSettingsDefaultObject.Settings;
+                if (settings == null)
+                {
+                    return AddressableSceneData.None;
+                }
+
+                var assetGuid = AssetDatabase.AssetPathToGUID(assetPath);
+                if (string.IsNullOrWhiteSpace(assetGuid))
+                {
+                    return AddressableSceneData.None;
+                }
+
+                var entry = settings.FindAssetEntry(assetGuid);
+                if (entry == null)
+                {
+                    return AddressableSceneData.None;
+                }
+
+                if (!entry.IsScene)
+                {
+                    return AddressableSceneData.None;
+                }
+
+                return new AddressableSceneData(
+                    true,
+                    entry.guid,
+                    entry.address
+                );
+            }
+        }
+#endif
+#endif
+
         /// <summary>
         /// <see cref="CustomPropertyDrawer"/> for a <see cref="SceneReference"/> in the Inspector.
         /// <para>If scene is valid, provides basic buttons to interact with the scene's role in Build Settings.</para>
         /// </summary>
         [CustomPropertyDrawer(typeof(SceneReference))]
-        internal class SceneReferenceDrawer : PropertyDrawer
+        private class SceneReferenceDrawer : PropertyDrawer
         {
-            private const string SCENE_ASSET_PROPERTY_STRING = "_sceneAsset";
-            private const string SCENE_PATH_PROPERTY_STRING = "_path";
-            private const string SCENE_NAME_PROPERTY_STRING = "_name";
+            private const string SCENE_ASSET_PROPERTY_NAME = nameof(_sceneAsset);
+            private const string SCENE_PATH_PROPERTY_NAME = nameof(_path);
+            private const string SCENE_NAME_PROPERTY_NAME = nameof(_name);
+#if SUPPORT_ADDRESABBLES
+            private const string SCENE_IS_ADDRESSABLE_PROPERTY_NAME = nameof(_isAddressable);
+            private const string SCENE_ADDRESSABLE_ADDRESS_PROPERTY_NAME = nameof(_addressableAddress);
+            private const string SCENE_ADDRESSABLE_ASSET_GUID_PROPERTY_NAME = nameof(_addressableAssetGuid);
+#endif
 
             private const float PAD_SIZE = 2f;
             private const float HEADER_SIZE = 5f;
@@ -393,8 +782,12 @@ namespace derHugo.Unity.SceneReference
             private static readonly float LineHeight = EditorGUIUtility.singleLineHeight;
             private static readonly float PaddedLineHeight = LineHeight + PAD_SIZE;
 
+#if SUPPORT_ADDRESABBLES
+            private static readonly GUIContent LinkedDot = EditorGUIUtility.IconContent("linked");
+#endif
             private static readonly GUIContent GreenDot = EditorGUIUtility.IconContent("greenlight");
             private static readonly GUIContent YellowDot = EditorGUIUtility.IconContent("orangelight");
+            private static readonly GUIContent RedDot = EditorGUIUtility.IconContent("redlight");
 
             public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
             {
@@ -411,7 +804,7 @@ namespace derHugo.Unity.SceneReference
                         position = EditorGUI.PrefixLabel(position, label);
                     }
 
-                    var sceneAssetProperty = GetSceneAssetProperty(property);
+                    var sceneAssetProperty = property.FindPropertyRelative(SCENE_ASSET_PROPERTY_NAME);
 
                     // Draw the Box Background
                     position.height -= FOOTER_HEIGHT;
@@ -432,20 +825,42 @@ namespace derHugo.Unity.SceneReference
                         EditorGUI.PropertyField(position, sceneAssetProperty, new GUIContent { tooltip = "The actual Scene Asset reference.\nOn serialize this is also stored as the asset's path." }, false);
                         GUI.color = color;
                     }
+
+                    var sceneAssetPath = sceneAssetProperty.objectReferenceValue ? AssetDatabase.GetAssetPath(sceneAssetProperty.objectReferenceValue) : string.Empty;
+                    var isAddressableScene = false;
+#if SUPPORT_ADDRESABBLES
+                    var addressableSceneData = AddressablesUtils.GetSceneData(sceneAssetPath);
+                    isAddressableScene = addressableSceneData.IsAddressable;
+                    SyncAddressableProperties(property, addressableSceneData);
+#endif
+
                     var buildScene = BuildUtils.GetBuildScene(sceneAssetProperty.objectReferenceValue);
                     if (EditorGUI.EndChangeCheck())
                     {
-                        // If no valid scene asset was selected, reset the stored path accordingly
-                        if (buildScene.Scene == null)
+                        var pathProperty = property.FindPropertyRelative(SCENE_PATH_PROPERTY_NAME);
+                        var nameProperty = property.FindPropertyRelative(SCENE_NAME_PROPERTY_NAME);
+
+                        if (sceneAssetProperty.objectReferenceValue)
                         {
-                            GetScenePathProperty(property).stringValue = string.Empty;
-                            GetSceneNameProperty(property).stringValue = string.Empty;
+                            pathProperty.stringValue = sceneAssetPath;
+                            nameProperty.stringValue = sceneAssetProperty.objectReferenceValue.name;
+                        }
+                        else
+                        {
+                            pathProperty.stringValue = string.Empty;
+                            nameProperty.stringValue = string.Empty;
                         }
                     }
 
                     position.y += PaddedLineHeight;
 
-                    if (!buildScene.AssetGuid.Empty())
+                    if (isAddressableScene)
+                    {
+#if SUPPORT_ADDRESABBLES
+                        DrawAddressablesInfoGUI(position, addressableSceneData);
+#endif
+                    }
+                    else if (!buildScene.AssetGuid.Empty())
                     {
                         var readOnly = BuildUtils.IsReadOnly();
                         var readOnlyWarning = readOnly ? "\n\nWARNING: Build Settings is not checked out and so cannot be modified." : string.Empty;
@@ -470,12 +885,22 @@ namespace derHugo.Unity.SceneReference
             /// </summary>
             public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
             {
-                var sceneAssetProperty = GetSceneAssetProperty(property);
+                var sceneAssetProperty = property.FindPropertyRelative(SCENE_ASSET_PROPERTY_NAME);
+                var sceneAssetPath = sceneAssetProperty.objectReferenceValue ? AssetDatabase.GetAssetPath(sceneAssetProperty.objectReferenceValue) : string.Empty;
+                var isAddressableScene = false;
+
+#if SUPPORT_ADDRESABBLES
+                isAddressableScene = AddressablesUtils.GetSceneData(sceneAssetPath).IsAddressable;
+#endif
 
                 int lines;
                 if (sceneAssetProperty.objectReferenceValue == null)
                 {
                     lines = 1;
+                }
+                else if (isAddressableScene)
+                {
+                    lines = 2;
                 }
                 else if (EditorApplication.isPlayingOrWillChangePlaymode)
                 {
@@ -557,23 +982,23 @@ namespace derHugo.Unity.SceneReference
                 if (buildScene.BuildIndex == -1)
                 {
                     // Missing from build scenes
-                    iconContent = YellowDot;
+                    iconContent = RedDot;
                     labelContent.text = "NOT In Build Settings!";
                     labelContent.tooltip = "This scene is NOT in build settings.\nIt will be NOT included in builds.";
                 }
-                else if (buildScene.Scene.enabled)
-                {
-                    // In build scenes and enabled
-                    iconContent = GreenDot;
-                    labelContent.text = "BuildIndex: " + buildScene.BuildIndex;
-                    labelContent.tooltip = "This scene is in build settings and ENABLED.\nIt will be included in builds." + readOnlyWarning;
-                }
-                else
+                else if (!buildScene.Scene.enabled)
                 {
                     // In build scenes and disabled
                     iconContent = YellowDot;
                     labelContent.text = "BuildIndex: " + buildScene.BuildIndex + " (DISABLED!)";
                     labelContent.tooltip = "This scene is in build settings but DISABLED.\nIt will be NOT included in builds.";
+                }
+                else
+                {
+                    // In build scenes and enabled
+                    iconContent = GreenDot;
+                    labelContent.text = "BuildIndex: " + buildScene.BuildIndex;
+                    labelContent.tooltip = "This scene is in build settings and ENABLED.\nIt will be included in builds." + readOnlyWarning;
                 }
 
                 // status label
@@ -590,20 +1015,59 @@ namespace derHugo.Unity.SceneReference
                 }
             }
 
-            private static SerializedProperty GetSceneAssetProperty(SerializedProperty property)
+#if SUPPORT_ADDRESABBLES
+            private static void DrawAddressablesInfoGUI(Rect position, AddressableSceneData addressableSceneData)
             {
-                return property.FindPropertyRelative(SCENE_ASSET_PROPERTY_STRING);
+                GUIContent iconContent;
+                var labelContent = new GUIContent();
+
+                if (addressableSceneData.IsAddressable)
+                {
+                    iconContent = LinkedDot;
+                    labelContent.text = string.IsNullOrWhiteSpace(addressableSceneData.Address)
+                        ? "Addressable"
+                        : "Address: " + addressableSceneData.Address;
+                    labelContent.tooltip = string.IsNullOrWhiteSpace(addressableSceneData.Address)
+                        ? "Runtime key uses the asset GUID: " + addressableSceneData.AssetGuid
+                        : "Runtime key uses the asset GUID: " + addressableSceneData.AssetGuid + "\nAddress: " + addressableSceneData.Address;
+                }
+                else
+                {
+                    return;
+                }
+
+                var iconRect = position;
+                iconRect.width = PaddedLineHeight;
+                EditorGUI.LabelField(iconRect, iconContent);
+
+                var labelRect = position;
+                labelRect.width -= iconRect.width;
+                labelRect.x += iconRect.width;
+                EditorGUI.LabelField(labelRect, labelContent);
             }
 
-            private static SerializedProperty GetScenePathProperty(SerializedProperty property)
+            private static void SyncAddressableProperties(SerializedProperty property, AddressableSceneData addressableSceneData)
             {
-                return property.FindPropertyRelative(SCENE_PATH_PROPERTY_STRING);
-            }
+                var isAddressableProperty = property.FindPropertyRelative(SCENE_IS_ADDRESSABLE_PROPERTY_NAME);
+                if (isAddressableProperty.boolValue != addressableSceneData.IsAddressable)
+                {
+                    isAddressableProperty.boolValue = addressableSceneData.IsAddressable;
+                }
 
-            private static SerializedProperty GetSceneNameProperty(SerializedProperty property)
-            {
-                return property.FindPropertyRelative(SCENE_NAME_PROPERTY_STRING);
+                var addressableAddressProperty = property.FindPropertyRelative(SCENE_ADDRESSABLE_ADDRESS_PROPERTY_NAME);
+                if (addressableAddressProperty.stringValue != addressableSceneData.Address)
+                {
+                    addressableAddressProperty.stringValue = addressableSceneData.Address;
+                }
+
+                var addressableAssetGuidProperty = property.FindPropertyRelative(SCENE_ADDRESSABLE_ASSET_GUID_PROPERTY_NAME);
+                if (addressableAssetGuidProperty.stringValue != addressableSceneData.AssetGuid)
+                {
+                    addressableAssetGuidProperty.stringValue = addressableSceneData.AssetGuid;
+                }
             }
+#endif
+
 
             private static class DrawUtils
             {
@@ -678,7 +1142,7 @@ namespace derHugo.Unity.SceneReference
                     }
 
                     // If offline (and are using a version control provider that requires checkout) we cannot edit.
-                    if (Provider.onlineState == UnityEditor.VersionControl.OnlineState.Offline)
+                    if (Provider.onlineState == OnlineState.Offline)
                         return true;
 
                     // Try to get status for file

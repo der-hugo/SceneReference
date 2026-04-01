@@ -47,11 +47,41 @@ which if the scene was added to the build settings means it can be loaded.
 There is an implicit conversion to `string` returning the `path` so a `SceneReference`
 can directly passed as a parameter to `SceneManager.LoadScene`
 
+If `com.unity.addressables` is installed, `SceneReference` also tracks whether the selected
+scene is addressable and stores its runtime key. Use `IsAddressable` together with `RuntimeKey`
+to inspect the serialized loading identity.
+
+The preferred loading entry point is `LoadAsync(...)`, which returns a `SceneReferenceLoadOperation`
+wrapper that works for both `SceneManager` and Addressables scenes.
+
+```csharp
+var loadOperation = _example.LoadAsync(LoadSceneMode.Additive, activateOnLoad: false);
+
+while (!loadOperation.IsDone)
+{
+    Debug.Log(loadOperation.Progress);
+    yield return null;
+}
+
+if (loadOperation.IsReadyForActivation)
+{
+    yield return loadOperation.ActivateAsync();
+}
+```
+
+`SceneReference.IsLoaded` remains valid for both regular and Addressables scenes once the scene
+has actually been activated into the `SceneManager`. For delayed activation workflows, inspect the
+returned `SceneReferenceLoadOperation` instead.
+
+For Addressables scenes, the stored runtime key is GUID-first for rename safety. The address is
+still exposed for inspector UI and informational display.
+
 ## Visual Enhancement
 
 It is up to the user to ensure the scene exists in the build settings so it is loadable at runtime.
 
-To help with this, a custom `PropertyDrawer` displays the scene build settings state.
+To help with this, a custom `PropertyDrawer` displays the scene build settings state and, when
+Addressables is installed, the current addressable state as well.
 
 [![SceneReference Inspector][1]][1]
 

@@ -2,7 +2,9 @@
     "name": "derHugo.Unity.SceneReference.Samples",
     "rootNamespace": "derHugo.Unity.SceneReference.Samples",
     "references": [
-        "GUID:944fbb5d706638b4fbcd987efb51b737"
+        "GUID:944fbb5d706638b4fbcd987efb51b737",
+        "GUID:9e24947de15b9834991c9d8411ea37cf",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -11,6 +13,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.addressables",
+            "expression": "2.9",
+            "define": "SUPPORT_ADDRESABBLES"
+        }
+    ],
     "noEngineReferences": false
 }
