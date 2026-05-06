@@ -147,7 +147,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2133014000662874600}
   - component: {fileID: 8226129458172271487}
-  - component: {fileID: 6057616146772756457}
+  - component: {fileID: 4047853455880980946}
   - component: {fileID: 5491396843645747535}
   - component: {fileID: 8735192629853246315}
   - component: {fileID: 5612509776001174277}
@@ -186,7 +186,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9176059634961541603}
   m_CullTransparentMesh: 1
---- !u!114 &6057616146772756457
+--- !u!114 &4047853455880980946
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -199,7 +199,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 0.5019608}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -237,11 +237,11 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
-    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_NormalColor: {r: 0.3, g: 0.3, b: 0.3, a: 0.5019608}
+    m_HighlightedColor: {r: 0.4, g: 0.4, b: 0.4, a: 1}
+    m_PressedColor: {r: 0.6, g: 0.6, b: 0.6, a: 1}
+    m_SelectedColor: {r: 0.3, g: 0.3, b: 0.3, a: 0.5019608}
+    m_DisabledColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.2509804}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
   m_SpriteState:
@@ -256,7 +256,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 6057616146772756457}
+  m_TargetGraphic: {fileID: 4047853455880980946}
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
