@@ -15,42 +15,42 @@ namespace derHugo.SceneReference
     /// </summary>
     public sealed class SceneReferenceLoadOperation : CustomYieldInstruction
     {
-        private readonly SceneReference _sceneReference;
-        private readonly bool _activateOnLoad;
-        private readonly int _priority;
         private readonly Exception _operationException;
         private readonly AsyncOperation _sceneOperation;
-        private AsyncOperation _activationOperation;
 
 #if SUPPORT_ADDRESABBLES
-        private readonly bool _isAddressable;
-        private readonly AsyncOperationHandle<SceneInstance> _addressableLoadHandle;
+        public bool IsAddressable { get; }
+
+        public AsyncOperationHandle<SceneInstance> AddressablesLoadHandle { get; }
+
+        private SceneReferenceLoadOperation(SceneReference sceneReference, AsyncOperationHandle<SceneInstance> addressableLoadHandle, bool activateOnLoad, int priority)
+        {
+            SceneReference = sceneReference;
+            AddressablesLoadHandle = addressableLoadHandle;
+            ActivateOnLoad = activateOnLoad;
+            Priority = priority;
+            IsAddressable = true;
+        }
+
+        internal static SceneReferenceLoadOperation CreateAddressable(SceneReference sceneReference, AsyncOperationHandle<SceneInstance> addressableLoadHandle, bool activateOnLoad, int priority)
+        {
+            return new SceneReferenceLoadOperation(sceneReference, addressableLoadHandle, activateOnLoad, priority);
+        }
 #endif
 
         private SceneReferenceLoadOperation(SceneReference sceneReference, AsyncOperation sceneOperation, bool activateOnLoad, int priority)
         {
-            _sceneReference = sceneReference;
+            SceneReference = sceneReference;
             _sceneOperation = sceneOperation;
-            _activateOnLoad = activateOnLoad;
-            _priority = priority;
+            ActivateOnLoad = activateOnLoad;
+            Priority = priority;
         }
 
         private SceneReferenceLoadOperation(SceneReference sceneReference, Exception operationException)
         {
-            _sceneReference = sceneReference;
+            SceneReference = sceneReference;
             _operationException = operationException;
         }
-
-#if SUPPORT_ADDRESABBLES
-        private SceneReferenceLoadOperation(SceneReference sceneReference, AsyncOperationHandle<SceneInstance> addressableLoadHandle, bool activateOnLoad, int priority)
-        {
-            _sceneReference = sceneReference;
-            _addressableLoadHandle = addressableLoadHandle;
-            _activateOnLoad = activateOnLoad;
-            _priority = priority;
-            _isAddressable = true;
-        }
-#endif
 
         internal static SceneReferenceLoadOperation CreateSceneManager(SceneReference sceneReference, AsyncOperation sceneOperation, bool activateOnLoad, int priority)
         {
@@ -62,27 +62,10 @@ namespace derHugo.SceneReference
             return new SceneReferenceLoadOperation(sceneReference, operationException);
         }
 
-#if SUPPORT_ADDRESABBLES
-        internal static SceneReferenceLoadOperation CreateAddressable(SceneReference sceneReference, AsyncOperationHandle<SceneInstance> addressableLoadHandle, bool activateOnLoad, int priority)
-        {
-            return new SceneReferenceLoadOperation(sceneReference, addressableLoadHandle, activateOnLoad, priority);
-        }
-#endif
+        public SceneReference SceneReference { get; }
+        public bool ActivateOnLoad { get; }
+        public int Priority { get; }
 
-        public SceneReference SceneReference => _sceneReference;
-        public bool IsAddressable
-        {
-            get
-            {
-#if SUPPORT_ADDRESABBLES
-                return _isAddressable;
-#else
-                return false;
-#endif
-            }
-        }
-        public bool ActivateOnLoad => _activateOnLoad;
-        public int Priority => _priority;
         public override bool keepWaiting => !IsDone;
 
         public bool IsValid
@@ -90,12 +73,12 @@ namespace derHugo.SceneReference
             get
             {
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable)
+                if (IsAddressable)
                 {
-                    return _addressableLoadHandle.IsValid() || _activationOperation != null;
+                    return AddressablesLoadHandle.IsValid() || ActivationOperation != null;
                 }
 #endif
-                return _sceneOperation != null || _activationOperation != null;
+                return _sceneOperation != null || ActivationOperation != null;
             }
         }
 
@@ -117,7 +100,11 @@ namespace derHugo.SceneReference
                     return true;
                 }
 
-                return !IsAddressable && _sceneOperation == null && _activationOperation == null;
+                return
+#if SUPPORT_ADDRESABBLES
+                    !IsAddressable &&
+#endif
+                    _sceneOperation == null && ActivationOperation == null;
             }
         }
 
@@ -125,18 +112,18 @@ namespace derHugo.SceneReference
         {
             get
             {
-                if (_activateOnLoad || _activationOperation != null)
+                if (ActivateOnLoad || ActivationOperation != null)
                 {
                     return false;
                 }
 
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable)
+                if (IsAddressable)
                 {
-                    return _addressableLoadHandle.IsValid()
-                        && _addressableLoadHandle.Status == AsyncOperationStatus.Succeeded
-                        && _addressableLoadHandle.IsDone
-                        && !IsLoaded;
+                    return AddressablesLoadHandle.IsValid()
+                           && AddressablesLoadHandle.Status == AsyncOperationStatus.Succeeded
+                           && AddressablesLoadHandle.IsDone
+                           && !IsLoaded;
                 }
 #endif
 
@@ -144,32 +131,32 @@ namespace derHugo.SceneReference
             }
         }
 
-        public bool IsActivating => _activationOperation != null && !_activationOperation.isDone;
+        public bool IsActivating => ActivationOperation != null && !ActivationOperation.isDone;
 
         public bool IsDone
         {
             get
             {
-                if (_activationOperation != null)
+                if (ActivationOperation != null)
                 {
-                    return _activationOperation.isDone;
+                    return ActivationOperation.isDone;
                 }
 
-                if (!_activateOnLoad)
+                if (!ActivateOnLoad)
                 {
 #if SUPPORT_ADDRESABBLES
-                    if (_isAddressable)
+                    if (IsAddressable)
                     {
-                        return (_addressableLoadHandle.IsValid() && _addressableLoadHandle.IsDone) || IsLoaded;
+                        return (AddressablesLoadHandle.IsValid() && AddressablesLoadHandle.IsDone) || IsLoaded;
                     }
 #endif
                     return _sceneOperation == null || IsReadyForActivation || IsLoaded;
                 }
 
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable)
+                if (IsAddressable)
                 {
-                    return _addressableLoadHandle.IsValid() && _addressableLoadHandle.IsDone;
+                    return AddressablesLoadHandle.IsValid() && AddressablesLoadHandle.IsDone;
                 }
 #endif
 
@@ -182,14 +169,14 @@ namespace derHugo.SceneReference
             get
             {
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable)
+                if (IsAddressable)
                 {
-                    if (!_addressableLoadHandle.IsValid())
+                    if (!AddressablesLoadHandle.IsValid())
                     {
                         return 0f;
                     }
 
-                    return _addressableLoadHandle.IsDone ? 1f : _addressableLoadHandle.PercentComplete;
+                    return AddressablesLoadHandle.IsDone ? 1f : AddressablesLoadHandle.PercentComplete;
                 }
 #endif
 
@@ -203,7 +190,7 @@ namespace derHugo.SceneReference
                     return 1f;
                 }
 
-                return _activateOnLoad ? _sceneOperation.progress : Mathf.Clamp01(_sceneOperation.progress / 0.9f);
+                return ActivateOnLoad ? _sceneOperation.progress : Mathf.Clamp01(_sceneOperation.progress / 0.9f);
             }
         }
 
@@ -211,9 +198,9 @@ namespace derHugo.SceneReference
         {
             get
             {
-                if (_activationOperation != null)
+                if (ActivationOperation != null)
                 {
-                    return _activationOperation.isDone ? 1f : _activationOperation.progress;
+                    return ActivationOperation.isDone ? 1f : ActivationOperation.progress;
                 }
 
                 if (IsReadyForActivation)
@@ -222,9 +209,9 @@ namespace derHugo.SceneReference
                 }
 
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable)
+                if (IsAddressable)
                 {
-                    return _addressableLoadHandle.IsValid() ? _addressableLoadHandle.PercentComplete : 0f;
+                    return AddressablesLoadHandle.IsValid() ? AddressablesLoadHandle.PercentComplete : 0f;
                 }
 #endif
 
@@ -242,9 +229,9 @@ namespace derHugo.SceneReference
             get
             {
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable && _addressableLoadHandle.IsValid())
+                if (IsAddressable && AddressablesLoadHandle.IsValid())
                 {
-                    return _addressableLoadHandle.OperationException;
+                    return AddressablesLoadHandle.OperationException;
                 }
 #endif
                 return _operationException;
@@ -256,60 +243,56 @@ namespace derHugo.SceneReference
             get
             {
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable
-                    && _addressableLoadHandle.IsValid()
-                    && _addressableLoadHandle.Status == AsyncOperationStatus.Succeeded
-                    && _addressableLoadHandle.IsDone)
+                if (IsAddressable
+                    && AddressablesLoadHandle.IsValid()
+                    && AddressablesLoadHandle.Status == AsyncOperationStatus.Succeeded
+                    && AddressablesLoadHandle.IsDone)
                 {
-                    return _addressableLoadHandle.Result.Scene;
+                    return AddressablesLoadHandle.Result.Scene;
                 }
 #endif
 
-                return string.IsNullOrWhiteSpace(_sceneReference.Path)
+                return string.IsNullOrWhiteSpace(SceneReference.Path)
                     ? default
-                    : SceneManager.GetSceneByPath(_sceneReference.Path);
+                    : SceneManager.GetSceneByPath(SceneReference.Path);
             }
         }
 
-        public AsyncOperation SceneOperation => _activationOperation ?? _sceneOperation;
-        public AsyncOperation ActivationOperation => _activationOperation;
-
-#if SUPPORT_ADDRESABBLES
-        public AsyncOperationHandle<SceneInstance> AddressablesLoadHandle => _addressableLoadHandle;
-#endif
+        public AsyncOperation SceneOperation => ActivationOperation ?? _sceneOperation;
+        public AsyncOperation ActivationOperation { get; private set; }
 
         public AsyncOperation ActivateAsync()
         {
-            if (_activationOperation != null)
+            if (ActivationOperation != null)
             {
-                return _activationOperation;
+                return ActivationOperation;
             }
 
-            if (_activateOnLoad)
+            if (ActivateOnLoad)
             {
                 return SceneOperation;
             }
 
 #if SUPPORT_ADDRESABBLES
-            if (_isAddressable)
+            if (IsAddressable)
             {
-                if (!_addressableLoadHandle.IsValid() || !_addressableLoadHandle.IsDone)
+                if (!AddressablesLoadHandle.IsValid() || !AddressablesLoadHandle.IsDone)
                 {
                     return null;
                 }
 
-                if (_addressableLoadHandle.Status != AsyncOperationStatus.Succeeded)
+                if (AddressablesLoadHandle.Status != AsyncOperationStatus.Succeeded)
                 {
                     return null;
                 }
 
-                _activationOperation = _addressableLoadHandle.Result.ActivateAsync();
-                if (_activationOperation != null)
+                ActivationOperation = AddressablesLoadHandle.Result.ActivateAsync();
+                if (ActivationOperation != null)
                 {
-                    _activationOperation.priority = _priority;
+                    ActivationOperation.priority = Priority;
                 }
 
-                return _activationOperation;
+                return ActivationOperation;
             }
 #endif
 
@@ -319,8 +302,8 @@ namespace derHugo.SceneReference
             }
 
             _sceneOperation.allowSceneActivation = true;
-            _activationOperation = _sceneOperation;
-            return _activationOperation;
+            ActivationOperation = _sceneOperation;
+            return ActivationOperation;
         }
 
         public SceneReferenceUnloadOperation UnloadAsync(UnloadSceneOptions unloadOptions = UnloadSceneOptions.None, bool autoReleaseHandle = true)
@@ -331,23 +314,23 @@ namespace derHugo.SceneReference
         public SceneReferenceUnloadOperation Unload(UnloadSceneOptions unloadOptions = UnloadSceneOptions.None, bool autoReleaseHandle = true)
         {
 #if SUPPORT_ADDRESABBLES
-            if (_isAddressable)
+            if (IsAddressable)
             {
-                if (!_addressableLoadHandle.IsValid() || _addressableLoadHandle.Status != AsyncOperationStatus.Succeeded)
+                if (!AddressablesLoadHandle.IsValid() || AddressablesLoadHandle.Status != AsyncOperationStatus.Succeeded)
                 {
-                    return SceneReferenceUnloadOperation.CreateInvalid(_sceneReference);
+                    return SceneReferenceUnloadOperation.CreateInvalid(SceneReference);
                 }
 
                 return SceneReferenceUnloadOperation.CreateAddressable(
-                    _sceneReference,
-                    Addressables.UnloadSceneAsync(_addressableLoadHandle, unloadOptions, autoReleaseHandle)
+                    SceneReference,
+                    Addressables.UnloadSceneAsync(AddressablesLoadHandle, unloadOptions, autoReleaseHandle)
                 );
             }
 #endif
 
             var scene = Scene;
             return SceneReferenceUnloadOperation.CreateSceneManager(
-                _sceneReference,
+                SceneReference,
                 scene.IsValid() ? SceneManager.UnloadSceneAsync(scene, unloadOptions) : null
             );
         }
@@ -358,28 +341,29 @@ namespace derHugo.SceneReference
     /// </summary>
     public sealed class SceneReferenceUnloadOperation : CustomYieldInstruction
     {
-        private readonly SceneReference _sceneReference;
-        private readonly AsyncOperation _sceneOperation;
-
 #if SUPPORT_ADDRESABBLES
-        private readonly bool _isAddressable;
-        private readonly AsyncOperationHandle<SceneInstance> _addressableUnloadHandle;
+
+        private SceneReferenceUnloadOperation(SceneReference sceneReference, AsyncOperationHandle<SceneInstance> addressableUnloadHandle)
+        {
+            SceneReference = sceneReference;
+            AddressablesUnloadHandle = addressableUnloadHandle;
+            IsAddressable = true;
+        }
+
+        internal static SceneReferenceUnloadOperation CreateAddressable(SceneReference sceneReference, AsyncOperationHandle<SceneInstance> addressableUnloadHandle)
+        {
+            return new SceneReferenceUnloadOperation(sceneReference, addressableUnloadHandle);
+        }
+
+        public bool IsAddressable { get; }
+        public AsyncOperationHandle<SceneInstance> AddressablesUnloadHandle { get; }
 #endif
 
         private SceneReferenceUnloadOperation(SceneReference sceneReference, AsyncOperation sceneOperation)
         {
-            _sceneReference = sceneReference;
-            _sceneOperation = sceneOperation;
+            SceneReference = sceneReference;
+            SceneOperation = sceneOperation;
         }
-
-#if SUPPORT_ADDRESABBLES
-        private SceneReferenceUnloadOperation(SceneReference sceneReference, AsyncOperationHandle<SceneInstance> addressableUnloadHandle)
-        {
-            _sceneReference = sceneReference;
-            _addressableUnloadHandle = addressableUnloadHandle;
-            _isAddressable = true;
-        }
-#endif
 
         internal static SceneReferenceUnloadOperation CreateSceneManager(SceneReference sceneReference, AsyncOperation sceneOperation)
         {
@@ -391,25 +375,8 @@ namespace derHugo.SceneReference
             return new SceneReferenceUnloadOperation(sceneReference, null);
         }
 
-#if SUPPORT_ADDRESABBLES
-        internal static SceneReferenceUnloadOperation CreateAddressable(SceneReference sceneReference, AsyncOperationHandle<SceneInstance> addressableUnloadHandle)
-        {
-            return new SceneReferenceUnloadOperation(sceneReference, addressableUnloadHandle);
-        }
-#endif
+        public SceneReference SceneReference { get; }
 
-        public SceneReference SceneReference => _sceneReference;
-        public bool IsAddressable
-        {
-            get
-            {
-#if SUPPORT_ADDRESABBLES
-                return _isAddressable;
-#else
-                return false;
-#endif
-            }
-        }
         public override bool keepWaiting => !IsDone;
 
         public bool IsValid
@@ -417,12 +384,12 @@ namespace derHugo.SceneReference
             get
             {
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable)
+                if (IsAddressable)
                 {
-                    return _addressableUnloadHandle.IsValid();
+                    return AddressablesUnloadHandle.IsValid();
                 }
 #endif
-                return _sceneOperation != null;
+                return SceneOperation != null;
             }
         }
 
@@ -431,12 +398,12 @@ namespace derHugo.SceneReference
             get
             {
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable)
+                if (IsAddressable)
                 {
-                    return !_addressableUnloadHandle.IsValid() || _addressableUnloadHandle.IsDone;
+                    return !AddressablesUnloadHandle.IsValid() || AddressablesUnloadHandle.IsDone;
                 }
 #endif
-                return _sceneOperation == null || _sceneOperation.isDone;
+                return SceneOperation == null || SceneOperation.isDone;
             }
         }
 
@@ -447,20 +414,20 @@ namespace derHugo.SceneReference
             get
             {
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable)
+                if (IsAddressable)
                 {
-                    return _addressableUnloadHandle.IsValid()
-                        ? (_addressableUnloadHandle.IsDone ? 1f : _addressableUnloadHandle.PercentComplete)
+                    return AddressablesUnloadHandle.IsValid()
+                        ? (AddressablesUnloadHandle.IsDone ? 1f : AddressablesUnloadHandle.PercentComplete)
                         : 0f;
                 }
 #endif
 
-                if (_sceneOperation == null)
+                if (SceneOperation == null)
                 {
                     return 0f;
                 }
 
-                return _sceneOperation.isDone ? 1f : _sceneOperation.progress;
+                return SceneOperation.isDone ? 1f : SceneOperation.progress;
             }
         }
 
@@ -469,19 +436,15 @@ namespace derHugo.SceneReference
             get
             {
 #if SUPPORT_ADDRESABBLES
-                if (_isAddressable && _addressableUnloadHandle.IsValid())
+                if (IsAddressable && AddressablesUnloadHandle.IsValid())
                 {
-                    return _addressableUnloadHandle.OperationException;
+                    return AddressablesUnloadHandle.OperationException;
                 }
 #endif
                 return null;
             }
         }
 
-        public AsyncOperation SceneOperation => _sceneOperation;
-
-#if SUPPORT_ADDRESABBLES
-        public AsyncOperationHandle<SceneInstance> AddressablesUnloadHandle => _addressableUnloadHandle;
-#endif
+        public AsyncOperation SceneOperation { get; }
     }
 }

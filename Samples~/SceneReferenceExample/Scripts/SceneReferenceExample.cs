@@ -7,9 +7,7 @@ namespace derHugo.SceneReference.Samples
     public class SceneReferenceExample : ScriptableObject
     {
         [SerializeField] private SceneReference _singleSceneReference;
-
         [SerializeField] private SceneReference[] _sceneReferenceList;
-
         [SerializeField] private NestingExample _nestingExample;
 
         [Serializable]

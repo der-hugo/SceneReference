@@ -808,10 +808,12 @@ namespace derHugo.SceneReference
                     // Draw the main Object field
                     position.height = _lineHeight;
 
+                    var sceneAssetPath = sceneAssetProperty.objectReferenceValue != null ? AssetDatabase.GetAssetPath(sceneAssetProperty.objectReferenceValue) : string.Empty;
+
                     using (var changeCheck = new EditorGUI.ChangeCheckScope())
                     {
                         var color = GUI.color;
-                        if (!sceneAssetProperty.objectReferenceValue)
+                        if (sceneAssetProperty.objectReferenceValue == null)
                         {
                             GUI.color = Color.red;
                         }
@@ -819,15 +821,9 @@ namespace derHugo.SceneReference
                         EditorGUI.PropertyField(position, sceneAssetProperty, new GUIContent { tooltip = "The actual Scene Asset reference.\nOn serialize this is also stored as the asset's path." }, false);
                         GUI.color = color;
 
-                        var sceneAssetPath = sceneAssetProperty.objectReferenceValue ? AssetDatabase.GetAssetPath(sceneAssetProperty.objectReferenceValue) : string.Empty;
-#if SUPPORT_ADDRESABBLES
-                        var addressableSceneData = AddressablesUtils.GetSceneData(sceneAssetPath);
-                        var isAddressableScene = addressableSceneData.IsAddressable;
-                        SyncAddressableProperties(property, addressableSceneData);
-#endif
-
                         if (changeCheck.changed)
                         {
+                            sceneAssetPath = sceneAssetProperty.objectReferenceValue != null ? AssetDatabase.GetAssetPath(sceneAssetProperty.objectReferenceValue) : string.Empty;
                             var pathProperty = property.FindPropertyRelative(SCENE_PATH_PROPERTY_NAME);
                             var nameProperty = property.FindPropertyRelative(SCENE_NAME_PROPERTY_NAME);
 
@@ -845,6 +841,13 @@ namespace derHugo.SceneReference
                     }
 
                     position.y += _paddedLineHeight;
+
+#if SUPPORT_ADDRESABBLES
+                    var addressableSceneData = AddressablesUtils.GetSceneData(sceneAssetPath);
+                    var isAddressableScene = addressableSceneData.IsAddressable;
+                    SyncAddressableProperties(property, addressableSceneData);
+#endif
+
 #if SUPPORT_ADDRESABBLES
                     if (isAddressableScene)
                     {
@@ -853,22 +856,22 @@ namespace derHugo.SceneReference
                     else
                     {
 #endif
-                    var buildScene = BuildUtils.GetBuildScene(sceneAssetProperty.objectReferenceValue);
-                    if (!buildScene.AssetGuid.Empty())
-                    {
-                        var readOnly = BuildUtils.IsReadOnly();
-                        var readOnlyWarning = readOnly ? "\n\nWARNING: Build Settings is not checked out and so cannot be modified." : string.Empty;
-
-                        // Draw the Build Settings Info of the selected Scene
-                        DrawSceneInfoGUI(position, buildScene, readOnly, readOnlyWarning);
-
-                        position.y += _paddedLineHeight;
-
-                        if (!EditorApplication.isPlayingOrWillChangePlaymode)
+                        var buildScene = BuildUtils.GetBuildScene(sceneAssetProperty.objectReferenceValue);
+                        if (!buildScene.AssetGuid.Empty())
                         {
-                            DrawSceneButtonsGUI(position, buildScene, readOnly, readOnlyWarning);
+                            var readOnly = BuildUtils.IsReadOnly();
+                            var readOnlyWarning = readOnly ? "\n\nWARNING: Build Settings is not checked out and so cannot be modified." : string.Empty;
+
+                            // Draw the Build Settings Info of the selected Scene
+                            DrawSceneInfoGUI(position, buildScene, readOnly, readOnlyWarning);
+
+                            position.y += _paddedLineHeight;
+
+                            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+                            {
+                                DrawSceneButtonsGUI(position, buildScene, readOnly, readOnlyWarning);
+                            }
                         }
-                    }
 #if SUPPORT_ADDRESABBLES
                     }
 #endif
@@ -1032,7 +1035,7 @@ namespace derHugo.SceneReference
                 }
 
                 var iconRect = position;
-                iconRect.width = PaddedLineHeight;
+                iconRect.width = _paddedLineHeight;
                 EditorGUI.LabelField(iconRect, iconContent);
 
                 var labelRect = position;
