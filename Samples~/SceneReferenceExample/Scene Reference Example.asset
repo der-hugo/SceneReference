@@ -16,18 +16,39 @@ MonoBehaviour:
     _sceneAsset: {fileID: 102900000, guid: 173f0d7acad352746bbaaf9d68c953aa, type: 3}
     _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_A.unity
     _name: SceneReferenceExample_A
+    _isAddressable: 1
+    _addressableAddress: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_A.unity
+    _addressableAssetGuid: 173f0d7acad352746bbaaf9d68c953aa
   _sceneReferenceList:
+  - _sceneAsset: {fileID: 0}
+    _path: 
+    _name: 
+    _isAddressable: 0
+    _addressableAddress: 
+    _addressableAssetGuid: 
   - _sceneAsset: {fileID: 102900000, guid: 173f0d7acad352746bbaaf9d68c953aa, type: 3}
     _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_A.unity
     _name: SceneReferenceExample_A
+    _isAddressable: 1
+    _addressableAddress: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_A.unity
+    _addressableAssetGuid: 173f0d7acad352746bbaaf9d68c953aa
   - _sceneAsset: {fileID: 102900000, guid: c32522ec23ace4145a7a883fc5d6ecec, type: 3}
     _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_B.unity
     _name: SceneReferenceExample_B
+    _isAddressable: 0
+    _addressableAddress: 
+    _addressableAssetGuid: 
   - _sceneAsset: {fileID: 102900000, guid: 72fa09828cbbc8447bd0baf8cc1dd3d1, type: 3}
     _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_C.unity
     _name: SceneReferenceExample_C
+    _isAddressable: 0
+    _addressableAddress: 
+    _addressableAssetGuid: 
   _nestingExample:
-    - _nestedSceneReference:
-        _sceneAsset: {fileID: 102900000, guid: c32522ec23ace4145a7a883fc5d6ecec, type: 3}
-        _path: Assets/Samples/com.derhugo.unity.scenereference/SceneReferenceExample/Scenes/SceneReferenceExample_B.unity
-        _name: SceneReferenceExample_B
+    _nestedSceneReference:
+      _sceneAsset: {fileID: 102900000, guid: 99c9720ab356a0642a771bea13969a05, type: 3}
+      _path: Assets/Scenes/SampleScene.unity
+      _name: SampleScene
+      _isAddressable: 0
+      _addressableAddress: 
+      _addressableAssetGuid: 
