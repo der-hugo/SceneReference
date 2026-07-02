@@ -1,4 +1,8 @@
-﻿# About SceneReference Example
+﻿Package entry point: [README](../README.md)
+
+---
+
+<h1><img src="images/Scene.png" alt="Logo" width="80" align="middle" />&nbsp; Scene Reference - Example</h1>
 
 Example implementation showing the usage of `SceneReference`
 
