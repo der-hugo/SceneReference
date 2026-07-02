@@ -1,7 +1,4 @@
-<div style="display: flex; align-items: center; cursor: pointer;">
-  <img src="Documentation~/images/Scene.png" width="120" style="margin-right: 10px;">
-  <h1 style="margin: 0; padding: 0;">Scene Reference</h1>
-</div>
+<h1><img src="Documentation~/images/Scene.png" alt="Logo" width="120" align="middle" />&nbsp; Scene Reference</h1>
 
 *Originally based on https://github.com/JohannesMP/unity-scene-reference*
 
@@ -19,6 +16,8 @@ The runtime API returns wrapper operations that work across both `SceneManager` 
 - [Loading](#loading)
 - [Visual Enhancement](#visual-enhancement)
 - [Samples](#samples)
+
+---
 
 ## Requirements
 
@@ -96,4 +95,4 @@ can directly passed as a parameter to `SceneManager.LoadScene`
 
 ## Samples
 
-- [Scene View Sample](Documentation~/sample-scenereference.md) - *Showcases usage of `Scenereference`*
+- [Scene Reference Example](Documentation~/Sample.md) - *Showcases usage of `SceneReference`*
