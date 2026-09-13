@@ -13,7 +13,6 @@ using UnityEngine.ResourceManagement.ResourceProviders;
 
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using System.Linq;
 using UnityEditor.VersionControl;
 #if SUPPORT_ADDRESABBLES
@@ -608,12 +607,6 @@ namespace derHugo.SceneReference
 #endif
             }
 
-            if (!Application.isPlaying)
-            {
-                // we either recovered the asset from the given path or reset the path and name to empty
-                // in both cases we need to save
-                EditorSceneManager.MarkAllScenesDirty();
-            }
         }
 
         private SceneAsset GetSceneAssetFromPath()
